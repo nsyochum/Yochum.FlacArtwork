@@ -39,3 +39,7 @@ Thumbs.db
 !.idea/libraries/
 !.idea/codeStyles/
 !.idea/inspectionProfiles/*/.idea/
+*/.idea/
+# VS
+.vs/*
+*/Properties
