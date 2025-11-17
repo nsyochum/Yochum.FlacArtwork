@@ -22,12 +22,20 @@ public class Program
             return;
         }
 
-        ProcessDirectory(rootDir);
+        IList<string> noArtDirs = [];
+        ProcessDirectory(rootDir, noArtDirs);
+        foreach (var noArtDir in noArtDirs)
+        {
+            Log.Information(noArtDir);
+        }
     }
 
-    private static void ProcessDirectory(string dir)
+    private static void ProcessDirectory(
+        string dir,
+        IList<string> noArtDirs
+    )
     {
-        foreach (var subDir in Directory.GetDirectories(dir))
+        foreach (var subDir in Directory.GetDirectories(dir).Order())
         {
             // Check if this folder has .flac files and an image
             var flacFiles = Directory.GetFiles(subDir, "*.flac");
@@ -48,10 +56,14 @@ public class Program
             else
             {
                 Log.Information($"Skipping dir: {subDir}, {flacFiles.Length} FLAC files, {imageFiles.Length} Image files");
+                if (flacFiles.Length != 0)
+                {
+                    noArtDirs.Add(subDir);
+                }
             }
 
             // Recurse into deeper subdirectories
-            ProcessDirectory(subDir);
+            ProcessDirectory(subDir, noArtDirs);
         }
     }
 
@@ -61,9 +73,16 @@ public class Program
         {
             var file = TagLib.File.Create(flacPath);
             var picture = new Picture(imagePath);
-            file.Tag.Pictures = [picture];
-            file.Save();
-            Log.Information($"Updated artwork for: {flacPath}");
+            if (file.Tag.Pictures != null && file.Tag.Pictures.Length != 0)
+            {
+                Log.Information($"Skipped file: {flacPath}, already has artwork");
+            }
+            else
+            {
+                file.Tag.Pictures = [picture];
+                file.Save();
+                Log.Information($"Updated artwork for: {flacPath}");
+            }
         }
         catch (Exception ex)
         {
