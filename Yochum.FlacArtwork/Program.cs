@@ -9,13 +9,18 @@ public class Program
     public static void Main(string[] args)
     {
         InitLogger();
-        if (args.Length == 0)
+
+        // Parse flags: -f or --force
+        var argList = args?.ToList() ?? [];
+        var force = argList.RemoveAll(a => a == "-f" || a == "--force") > 0;
+
+        if (argList.Count == 0)
         {
-            Log.Error("Usage: Yochum.FlacArtwork <directory>");
+            Log.Error("Usage: Yochum.FlacArtwork [-f|--force] <directory>");
             return;
         }
 
-        var rootDir = args[0];
+        var rootDir = argList[0];
         if (!Directory.Exists(rootDir))
         {
             Log.Error("Directory not found.");
@@ -32,7 +37,8 @@ public class Program
 
     private static void ProcessDirectory(
         string dir,
-        IList<string> noArtDirs
+        IList<string> noArtDirs,
+        bool force
     )
     {
         foreach (var subDir in Directory.GetDirectories(dir).Order())
@@ -50,7 +56,7 @@ public class Program
 
                 foreach (var flac in flacFiles)
                 {
-                    AddArtwork(flac, imagePath);
+                    AddArtwork(flac, imagePath, force);
                 }
             }
             else
@@ -63,17 +69,21 @@ public class Program
             }
 
             // Recurse into deeper subdirectories
-            ProcessDirectory(subDir, noArtDirs);
+            ProcessDirectory(subDir, noArtDirs, force);
         }
     }
 
-    private static void AddArtwork(string flacPath, string imagePath)
+    private static void AddArtwork(
+        string flacPath, 
+        string imagePath,
+        bool force
+    )
     {
         try
         {
             var file = TagLib.File.Create(flacPath);
             var picture = new Picture(imagePath);
-            if (file.Tag.Pictures != null && file.Tag.Pictures.Length != 0)
+            if (file.Tag.Pictures != null && file.Tag.Pictures.Length != 0 && !force)
             {
                 Log.Information($"Skipped file: {flacPath}, already has artwork");
             }
@@ -92,19 +102,18 @@ public class Program
 
     private static void InitLogger()
     {
-        var now = DateTimeOffset.UtcNow;
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Verbose()
-                .WriteTo.Console()
-                .WriteTo.File(
-                    Path.Combine(
-                        AppDomain.CurrentDomain.BaseDirectory,
-                        "Logs",
-                        $"Log_.log"
-                    ),
-                    rollingInterval: RollingInterval.Hour,
-                    outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] {Message}{NewLine}{Exception}"
-                )
-                .CreateLogger();
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Verbose()
+            .WriteTo.Console()
+            .WriteTo.File(
+                Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Logs",
+                    $"Log_.log"
+                ),
+                rollingInterval: RollingInterval.Hour,
+                outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] {Message}{NewLine}{Exception}"
+            )
+            .CreateLogger();
     }
 }
